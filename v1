@@ -1,0 +1,57 @@
+import requests
+from bs4 import BeautifulSoup
+from datetime import datetime
+from datetime import date
+import smtplib
+from email.mime.text import MIMEText
+from threading import Timer
+
+x=datetime.today()
+y=x.replace(day=x.day+1, hour=2, minute=0, second=0, microsecond=0)
+delta_t=y-x
+
+secs=delta_t.seconds+1
+
+print(date.today())
+s = smtplib.SMTP_SSL('smtp.gmail.com',465)
+SEND_TO = 'chris.auzenne@gmail.com'
+SEND_FROM = 'StarWarsComicAlertApp@gmail.com'
+r = requests.get("http://starwars.wikia.com/wiki/List_of_future_comics")
+
+def getNewComics(secs):
+	msgContents = ''
+	soup=BeautifulSoup(r.content,"html5lib")
+	dateFormat = "%B %d, %Y"
+	for table in soup.find_all('table'):
+	    if table.get('border') == "1":
+	        for td in table.find_all('td'):
+	            output = td.text.lower()
+	            if output.find("comic book") > 0:
+	                comicName = td.find_previous_sibling().text
+	                print(comicName[1:])
+	                comicDate = td.find_next_sibling().text
+	                if comicDate.endswith("]\n"):
+	                    citationSize = comicDate.find("[")
+	                    comicDate = comicDate[:citationSize][1:]
+	                    formattedDate = datetime.strptime(comicDate,dateFormat)
+	                    print(str(formattedDate)[:10])
+	                    print('\n')
+	                else:
+	                    comicDate = comicDate[1:][:-1]
+	                    formattedDate = datetime.strptime(comicDate,dateFormat)
+	                    print(str(formattedDate)[:10])
+	                    print('\n')
+	                if '2018-02-07' == str(formattedDate)[:10]:
+	                    msgContents += comicName+'\n'
+	msg = MIMEText(msgContents)
+	msg['Subject'] = 'New Star Wars Comics!'
+	msg['To'] = SEND_TO
+	msg['From'] = SEND_FROM
+	s.login('chris.auzenne@gmail.com','fyllrsqppcnhcdoh')
+	s.sendmail(SEND_FROM,SEND_TO,msg.as_string())
+	s.close()
+	t = Timer(secs, getNewComics)
+	t.start()
+
+t = Timer(secs, getNewComics)
+t.start()
